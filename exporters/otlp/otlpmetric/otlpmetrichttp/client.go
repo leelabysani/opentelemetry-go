@@ -30,10 +30,11 @@ import (
 
 type client struct {
 	// req is cloned for every upload the client makes.
-	req         *http.Request
-	compression Compression
-	requestFunc retry.RequestFunc
-	httpClient  *http.Client
+	req             *http.Request
+	compression     Compression
+	requestFunc     retry.RequestFunc
+	httpClient      *http.Client
+	headersProvider func() map[string]string
 }
 
 // Keep it in sync with golang's DefaultTransport from net/http! We
@@ -73,9 +74,10 @@ func newClient(cfg oconf.Config) (*client, error) {
 	}
 
 	u := &url.URL{
-		Scheme: "https",
-		Host:   cfg.Metrics.Endpoint,
-		Path:   cfg.Metrics.URLPath,
+		Scheme:   "https",
+		Host:     cfg.Metrics.Endpoint,
+		Path:     cfg.Metrics.URLPath,
+		RawQuery: cfg.Metrics.RawQuery,
 	}
 	if cfg.Metrics.Insecure {
 		u.Scheme = "http"
@@ -97,10 +99,11 @@ func newClient(cfg oconf.Config) (*client, error) {
 	req.Header.Set("Content-Type", "application/x-protobuf")
 
 	return &client{
-		compression: Compression(cfg.Metrics.Compression),
-		req:         req,
-		requestFunc: cfg.RetryConfig.RequestFunc(evaluate),
-		httpClient:  httpClient,
+		compression:     Compression(cfg.Metrics.Compression),
+		req:             req,
+		requestFunc:     cfg.RetryConfig.RequestFunc(evaluate),
+		httpClient:      httpClient,
+		headersProvider: cfg.Metrics.HeadersProvider,
 	}, nil
 }
 
@@ -134,6 +137,15 @@ func (c *client) UploadMetrics(ctx context.Context, protoMetrics *metricpb.Resou
 	request, err := c.newRequest(ctx, body)
 	if err != nil {
 		return err
+	}
+
+	// this will override the headers already set in the request with
+	// use of environment variables and WithHeaders option.
+	if c.headersProvider != nil {
+		headers := c.headersProvider()
+		for k, v := range headers {
+			request.Header.Set(k, v)
+		}
 	}
 
 	return c.requestFunc(ctx, func(iCtx context.Context) error {

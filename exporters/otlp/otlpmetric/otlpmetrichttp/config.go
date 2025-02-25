@@ -109,6 +109,11 @@ func WithCompression(compression Compression) Option {
 	return wrappedOption{oconf.WithCompression(oconf.Compression(compression))}
 }
 
+// WithRawQuery
+func WithRawQuery(rawQuery string) Option {
+	return wrappedOption{oconf.WithRawQuery(rawQuery)}
+}
+
 // WithURLPath sets the URL path the Exporter will send requests to.
 //
 // If the OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
@@ -165,6 +170,17 @@ func WithInsecure() Option {
 // passed, no user headers will be set.
 func WithHeaders(headers map[string]string) Option {
 	return wrappedOption{oconf.WithHeaders(headers)}
+}
+
+// WithHeadersProvider will provide the function to call to get the headers
+// that will be sent with each HTTP request.
+// The headers returned by this function will have the precedence over the
+// headers set by WithHeaders or OTEL_EXPORTER_OTLP_HEADERS or OTEL_EXPORTER_OTLP_METRICS_HEADERS
+// environment variable.
+// By default, if an environment variable is not set, WithHeaders is not passed and
+// this option is not passed, no user headers will be set
+func WithHeadersProvider(headersProvider func() map[string]string) Option {
+	return wrappedOption{oconf.WithHeadersProvider(headersProvider)}
 }
 
 // WithTimeout sets the max amount of time an Exporter will attempt an export.

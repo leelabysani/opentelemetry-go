@@ -48,13 +48,15 @@ type (
 	HTTPTransportProxyFunc func(*http.Request) (*url.URL, error)
 
 	SignalConfig struct {
-		Endpoint    string
-		Insecure    bool
-		TLSCfg      *tls.Config
-		Headers     map[string]string
-		Compression Compression
-		Timeout     time.Duration
-		URLPath     string
+		Endpoint        string
+		Insecure        bool
+		TLSCfg          *tls.Config
+		Headers         map[string]string
+		HeadersProvider func() map[string]string
+		Compression     Compression
+		Timeout         time.Duration
+		URLPath         string
+		RawQuery        string
 
 		// gRPC configurations
 		GRPCCredentials credentials.TransportCredentials
@@ -288,6 +290,7 @@ func WithEndpointURL(v string) GenericOption {
 		cfg.Metrics.Endpoint = u.Host
 		cfg.Metrics.URLPath = u.Path
 		cfg.Metrics.Insecure = u.Scheme != "https"
+		cfg.Metrics.RawQuery = u.RawQuery
 
 		return cfg
 	})
@@ -331,6 +334,13 @@ func WithInsecure() GenericOption {
 	})
 }
 
+func WithRawQuery(rawQuery string) GenericOption {
+	return newGenericOption(func(cfg Config) Config {
+		cfg.Metrics.RawQuery = rawQuery
+		return cfg
+	})
+}
+
 func WithSecure() GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Metrics.Insecure = false
@@ -341,6 +351,13 @@ func WithSecure() GenericOption {
 func WithHeaders(headers map[string]string) GenericOption {
 	return newGenericOption(func(cfg Config) Config {
 		cfg.Metrics.Headers = headers
+		return cfg
+	})
+}
+
+func WithHeadersProvider(headersProvider func() map[string]string) GenericOption {
+	return newGenericOption(func(cfg Config) Config {
+		cfg.Metrics.HeadersProvider = headersProvider
 		return cfg
 	})
 }
